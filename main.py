@@ -7,8 +7,9 @@ import tkinter as tk
 import cv2
 from PIL import Image, ImageTk
 
+
 class CellularAutomataApp:
-    def __init__(self, root:tk.Tk,kernel:np.ndarray, start_image:np.ndarray,activation_function:function, interval_ms:int=1,device:torch.device = torch.device("cpu")):
+    def __init__(self, root:tk.Tk,kernel:np.ndarray, start_image:np.ndarray,activation_function:callable, interval_ms:int=1,device:torch.device = torch.device("cpu")):
         '''
         A constructor for the cellular automata app.
         
@@ -53,7 +54,8 @@ class CellularAutomataApp:
                         
         with torch.no_grad():
             self.cnn.weight = torch.nn.Parameter(self.kernel)
-                
+        
+        self.image = self.image[None,None,:,:]
         self.image = self.image.to(device=device)
         self.cnn = self.cnn.to(device=device)
                 
@@ -68,7 +70,7 @@ class CellularAutomataApp:
         
     def display_image(self):
         
-        img = self.image.cpu().detach().numpy()
+        img = self.image.cpu().detach().numpy()[0][0]
         
         resized_img = cv2.resize(img,(self.canvas_width,self.canvas_height))
         # resized_img = cv2.normalize(resized_img,None,alpha=0.0, beta=1.0, norm_type=cv2.NORM_MINMAX)
@@ -80,7 +82,7 @@ class CellularAutomataApp:
     
     def update_image(self):
         with torch.no_grad():
-            self.image = self.cnn(self.image[None,None,:,:])[0][0]
+            self.image = self.cnn(self.image)
             self.image = self.activation_function(self.image)
             self.image = torch.clamp(self.image,0,1)
                         
@@ -90,7 +92,7 @@ class CellularAutomataApp:
         
        
 # Moving to the left 
-def activation_func(x):
+def activation_1(x):
     return x
 
 kernel = np.array([
@@ -105,7 +107,9 @@ kernel_1 = np.array([
                 [-0.5,-0.1,0.2]
             ])
 
-def activation_func_1(x):
+
+# Bacteria colonii
+def activation_2(x):
     
     x = 1 - (2.5/np.sqrt(2*np.pi))*torch.exp(-(x**2)/2)
         
@@ -117,15 +121,50 @@ kernel_2 = np.array([
                 [0.68,-0.9,0.68]
             ])
 
+# Convoy game of life
+
+def activation_3(x):
+    filter = ( x == 3 ) | ( x==11 ) | ( x == 12 )
+    
+    filter = filter.float()
+        
+    return filter
+    
+
+kernel_3 = np.array([
+                [1,1,1],
+                [1,9,1],
+                [1,1,1]
+            ])
+
+
+# Labirynth worms
+
+def activation_4(x):
+    filter = ( x == 2 ) | ( x==11 ) | ( x == 12 )
+    
+    filter = filter.float()
+        
+    return filter
+    
+
+kernel_4 = np.array([
+                [1,1,1],
+                [1,9,1],
+                [1,1,1]
+            ])
 
 if __name__ == "__main__":
     
     device = torch.device("cuda")
     
     root = tk.Tk()
-    
-    image = np.random.random((64,64))
         
-    app = CellularAutomataApp(root,kernel_2, image,activation_func_1, interval_ms=10)
+    # image = np.random.random((64,64))*2 - 1
+    image = np.random.randint(0,2,(64,64))
+    
+    # image = cv2.imread('unnamed.jpg',cv2.IMREAD_GRAYSCALE)/255.0
+            
+    app = CellularAutomataApp(root,kernel_3, image,activation_3, interval_ms=10)
     
     root.mainloop()
